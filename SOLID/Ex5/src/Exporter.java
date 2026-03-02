@@ -1,4 +1,8 @@
 public abstract class Exporter {
-    // implied "contract" but not enforced (smell)
+    /**
+     * Exports content based on the request.
+     * 
+     * @throws ExportException if the request cannot be fulfilled by this format.
+     */
     public abstract ExportResult export(ExportRequest req);
 }

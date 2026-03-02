@@ -2,29 +2,32 @@ import java.util.*;
 
 public class CafeteriaSystem {
     private final Map<String, MenuItem> menu = new LinkedHashMap<>();
-    private final FileStore store = new FileStore();
+    private final InvoiceStore store;
+    private final PricingCalculator calculator;
+    private final InvoicePrinter printer;
     private int invoiceSeq = 1000;
 
-    public void addToMenu(MenuItem i) { menu.put(i.id, i); }
+    public CafeteriaSystem(InvoiceStore store) {
+        this.store = store;
+        this.calculator = new PricingCalculator();
+        this.printer = new InvoicePrinter();
+    }
 
-    // Intentionally SRP-violating: menu mgmt + tax + discount + format + persistence.
+    public void addToMenu(MenuItem i) {
+        menu.put(i.id, i);
+    }
+
     public void checkout(String customerType, List<OrderLine> lines) {
         String invId = "INV-" + (++invoiceSeq);
         StringBuilder out = new StringBuilder();
         out.append("Invoice# ").append(invId).append("\n");
 
-        double subtotal = 0.0;
-        for (OrderLine l : lines) {
-            MenuItem item = menu.get(l.itemId);
-            double lineTotal = item.price * l.qty;
-            subtotal += lineTotal;
-            out.append(String.format("- %s x%d = %.2f\n", item.name, l.qty, lineTotal));
-        }
+        double subtotal = calculator.calculateSubtotal(lines, menu, out);
 
         double taxPct = TaxRules.taxPercent(customerType);
-        double tax = subtotal * (taxPct / 100.0);
+        double tax = calculator.calculateTax(subtotal, customerType);
 
-        double discount = DiscountRules.discountAmount(customerType, subtotal, lines.size());
+        double discount = calculator.calculateDiscount(customerType, subtotal, lines.size());
 
         double total = subtotal + tax - discount;
 
@@ -34,9 +37,9 @@ public class CafeteriaSystem {
         out.append(String.format("TOTAL: %.2f\n", total));
 
         String printable = InvoiceFormatter.identityFormat(out.toString());
-        System.out.print(printable);
+        printer.print(printable);
 
         store.save(invId, printable);
-        System.out.println("Saved invoice: " + invId + " (lines=" + store.countLines(invId) + ")");
+        printer.printSaved(invId, store.countLines(invId));
     }
 }

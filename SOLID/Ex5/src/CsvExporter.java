@@ -3,7 +3,8 @@ import java.nio.charset.StandardCharsets;
 public class CsvExporter extends Exporter {
     @Override
     public ExportResult export(ExportRequest req) {
-        // LSP issue: changes meaning by lossy conversion
+        if (req == null)
+            throw new ExportException("Request cannot be null");
         String body = req.body == null ? "" : req.body.replace("\n", " ").replace(",", " ");
         String csv = "title,body\n" + req.title + "," + body + "\n";
         return new ExportResult("text/csv", csv.getBytes(StandardCharsets.UTF_8));
